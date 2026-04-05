@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "nyssan",
+  "version": "${version}",
+  "name": "${mod_name}",
+  "description": "${description}",
+  "authors": [
+    "Nyssan"
+  ],
+  "contact": {
+    "sources": "https://github.com/nyssan/nyssan-client"
+  },
+  "license": "MIT",
+  "icon": "assets/nyssan/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "main": [
+      "com.nyssan.client.NyssanClient"
+    ],
+    "client": [
+      "com.nyssan.client.NyssanClient::onInitializeClient"
+    ]
+  },
+  "mixins": [
+    "nyssan.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.10",
+    "minecraft": ">=1.21.11",
+    "java": ">=21"
+  }
+}

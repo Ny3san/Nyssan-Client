@@ -1,0 +1,17 @@
+.gradle/
+build/
+run/
+logs/
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.class
+.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+*.log
+.vscode/
+out/
+config/nyssan/
+.claude/

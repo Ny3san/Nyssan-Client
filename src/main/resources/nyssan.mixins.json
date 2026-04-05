@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.nyssan.client.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "MinecraftClientMixin",
+    "MouseMixin",
+    "KeyboardMixin",
+    "InGameHudMixin",
+    "ScreenMixin",
+    "FreeLookMixin",
+    "NoFogMixin",
+    "NoCameraShakeMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
