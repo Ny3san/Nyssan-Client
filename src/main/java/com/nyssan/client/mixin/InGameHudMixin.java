@@ -1,6 +1,6 @@
 package com.nyssan.client.mixin;
 
-import com.nyssan.client.ui.ClientGUI;
+import com.nyssan.client.ui.HudRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.client.render.RenderTickCounter;
@@ -14,6 +14,6 @@ public class InGameHudMixin {
     @Inject(method = "render", at = @At("TAIL"))
     private void onRender(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
         float tickDelta = tickCounter.getTickProgress(true);
-        ClientGUI.render(context, tickDelta);
+        HudRenderer.render(context, tickDelta);
     }
 }

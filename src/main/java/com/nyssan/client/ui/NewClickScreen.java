@@ -11,28 +11,31 @@ import org.jetbrains.annotations.NotNull;
 import java.util.*;
 
 public class NewClickScreen extends Screen {
-    // Colors - dark theme
-    private static final int BG_PRIMARY   = 0xDD0A0A0A;
-    private static final int BG_SECONDARY  = 0xCC0F0F0F;
-    private static final int BG_HOVER      = 0x33333333;
-    private static final int ACCENT        = 0xFF4488CC;
-    private static final int WHITE         = 0xEEEEEE;
-    private static final int GRAY          = 0x888888;
-    private static final int ON_COLOR      = 0x44FF44;
-    private static final int OFF_COLOR     = 0x666666;
-    private static final int BORDER_COLOR  = 0xFF333355;
-    private static final int SEPARATOR     = 0x22FFFFFF;
+    // Cores - estilo LiquidBounce
+    private static final int BG           = 0xCC0D0D0D;
+    private static final int PANEL_BG     = 0xDD111111;
+    private static final int HEADER_BG    = 0xFF1A6FCC;
+    private static final int HEADER_TEXT  = 0xFFFFFFFF;
+    private static final int MOD_ACTIVE   = 0xFF1A6FCC;
+    private static final int MOD_TEXT     = 0xFFEEEEEE;
+    private static final int MOD_INACTIVE = 0xFF888888;
+    private static final int MOD_HOVER    = 0xFF1D1D1D;
+    private static final int ON_INDICATOR = 0xFF44FF44;
+    private static final int SEPARATOR    = 0xFF222222;
+    private static final int BORDER_COLOR = 0xFF1A6FCC;
 
-    // Panel data
-    private final List<CategoryPanel> categoryPanels = new ArrayList<>();
-    private CategoryPanel draggingPanel = null;
-    private double dragOffsetX, dragOffsetY;
+    // Layout
+    private static final int PANEL_W       = 130;
+    private static final int HEADER_H      = 20;
+    private static final int MODULE_H      = 16;
+    private static final int PANEL_SPACING = 8;
+    private static final int START_X       = 10;
+    private static final int START_Y       = 30;
+
+    private final List<CategoryPanel> panels = new ArrayList<>();
+    private CategoryPanel dragging = null;
+    private int dragOffX, dragOffY;
     private int mouseX = 0, mouseY = 0;
-    private static final int PANEL_HEADER_HEIGHT = 22;
-    private static final int PANEL_WIDTH = 120;
-    private static final int PANEL_SPACING = 10;
-    private static final int PANEL_START_X = 10;
-    private static final int PANEL_START_Y = 30;
 
     public NewClickScreen() {
         super(Text.literal("NYSSAN Client"));
@@ -41,37 +44,23 @@ public class NewClickScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-        buildPanels();
-    }
+        panels.clear();
 
-    private void buildPanels() {
-        categoryPanels.clear();
-        Map<Module.Category, List<Module>> categories = new LinkedHashMap<>();
+        Map<Module.Category, List<Module>> cats = new LinkedHashMap<>();
         for (Module m : NyssanClient.moduleManager.getModules()) {
-            categories.computeIfAbsent(m.getCategory(), k -> new ArrayList<>()).add(m);
+            cats.computeIfAbsent(m.getCategory(), k -> new ArrayList<>()).add(m);
         }
 
-        // Grid layout: calculate scaled dimensions
-        int sw = this.width;
-        int col = 0;
-        int row = 0;
-        int maxX = PANEL_START_X;
-
-        for (Map.Entry<Module.Category, List<Module>> entry : categories.entrySet()) {
-            int px = PANEL_START_X + col * (PANEL_WIDTH + PANEL_SPACING);
-            int py = PANEL_START_Y + row * 200;
-
-            CategoryPanel panel = new CategoryPanel(entry.getKey(), entry.getValue(), px, py, PANEL_WIDTH);
-            categoryPanels.add(panel);
-
-            maxX = Math.max(maxX, px + PANEL_WIDTH);
-            col++;
-
-            // Wrap to next row if exceeds screen width
-            if (PANEL_START_X + (col + 1) * (PANEL_WIDTH + PANEL_SPACING) > sw) {
-                col = 0;
-                row++;
+        int i = 0;
+        for (Map.Entry<Module.Category, List<Module>> e : cats.entrySet()) {
+            int px = START_X + i * (PANEL_W + PANEL_SPACING);
+            // Wrap to next row if off screen
+            if (px + PANEL_W + 5 > this.width && i > 0) {
+                i = 0;
+                px = START_X;
             }
+            panels.add(new CategoryPanel(e.getKey(), e.getValue(), px, START_Y));
+            i++;
         }
     }
 
@@ -81,74 +70,64 @@ public class NewClickScreen extends Screen {
         this.mouseY = mouseY;
         super.render(context, mouseX, mouseY, delta);
 
-        context.fill(0, 0, this.width, this.height, BG_PRIMARY);
+        // Fundo escuro
+        context.fill(0, 0, this.width, this.height, BG);
 
-        // Title bar
-        context.drawText(textRenderer, Text.literal("NYSSAN Client v" + NyssanClient.VERSION), 12, 8, ACCENT, true);
-        context.fill(4, 22, this.width - 4, 23, ACCENT);
+        // Título + barra
+        context.drawText(textRenderer, Text.literal("NYSSAN Client v" + NyssanClient.VERSION), 8, 8, HEADER_TEXT, true);
+        context.fill(0, 22, this.width, 23, HEADER_BG);
 
-        for (CategoryPanel panel : categoryPanels) {
+        // Renderizar painéis
+        for (CategoryPanel panel : panels) {
             panel.render(context, mouseX, mouseY);
         }
     }
 
-    private CategoryPanel getPanelAt(double mx, double my) {
-        for (int i = categoryPanels.size() - 1; i >= 0; i--) {
-            CategoryPanel p = categoryPanels.get(i);
-            if (mx >= p.x && mx <= p.x + p.width && my >= p.y && my <= p.y + PANEL_HEADER_HEIGHT) {
-                return p;
+    @Override
+    public boolean mouseClicked(Click mc, boolean used) {
+        int mx = mouseX, my = mouseY;
+
+        // Verifica clique em módulo primeiro
+        for (CategoryPanel panel : panels) {
+            Module mod = panel.getModuleAt(mx, my);
+            if (mod != null) {
+                mod.toggle();
+                NyssanClient.configManager.save();
+                return true;
             }
         }
-        return null;
-    }
 
-    private Module getModuleAt(double mx, double my) {
-        for (CategoryPanel panel : categoryPanels) {
-            Module m = panel.getModuleAt(mx, my);
-            if (m != null) return m;
-        }
-        return null;
-    }
-
-    @Override
-    public boolean mouseClicked(Click mouseClick, boolean used) {
-        // Check module click first
-        Module mod = getModuleAt(mouseX, mouseY);
-        if (mod != null) {
-            mod.toggle();
-            NyssanClient.configManager.save();
-            return true;
+        // Verifica clique no header para arrastar
+        for (int i = panels.size() - 1; i >= 0; i--) {
+            CategoryPanel p = panels.get(i);
+            if (mx >= p.x && mx <= p.x + p.w && my >= p.y && my <= p.y + HEADER_H) {
+                dragging = p;
+                dragOffX = mx - p.x;
+                dragOffY = my - p.y;
+                // Trazer para frente
+                panels.remove(p);
+                panels.add(p);
+                return true;
+            }
         }
 
-        // Check panel drag
-        CategoryPanel panel = getPanelAt(mouseX, mouseY);
-        if (panel != null) {
-            draggingPanel = panel;
-            dragOffsetX = mouseX - panel.x;
-            dragOffsetY = mouseY - panel.y;
-            // Move to front
-            categoryPanels.remove(panel);
-            categoryPanels.add(panel);
-            return true;
-        }
-
-        return super.mouseClicked(mouseClick, used);
+        return super.mouseClicked(mc, used);
     }
 
     @Override
-    public boolean mouseReleased(Click mouseClick) {
-        draggingPanel = null;
-        return super.mouseReleased(mouseClick);
+    public boolean mouseReleased(Click mc) {
+        dragging = null;
+        return super.mouseReleased(mc);
     }
 
     @Override
-    public boolean mouseDragged(Click mouseClick, double deltaX, double deltaY) {
-        if (draggingPanel != null) {
-            draggingPanel.x = mouseX - (int) dragOffsetX;
-            draggingPanel.y = mouseY - (int) dragOffsetY;
+    public boolean mouseDragged(Click mc, double dx, double dy) {
+        if (dragging != null) {
+            dragging.x = mouseX - dragOffX;
+            dragging.y = mouseY - dragOffY;
             return true;
         }
-        return super.mouseDragged(mouseClick, deltaX, deltaY);
+        return super.mouseDragged(mc, dx, dy);
     }
 
     @Override
@@ -157,63 +136,85 @@ public class NewClickScreen extends Screen {
     @Override
     public boolean shouldCloseOnEsc() { return true; }
 
-    // Category Panel inner class
     private static class CategoryPanel {
-        final Module.Category category;
+        final Module.Category cat;
         final List<Module> modules;
-        int x, y;
-        final int width;
+        int x, y, w = PANEL_W;
 
-        CategoryPanel(Module.Category category, List<Module> modules, int x, int y, int width) {
-            this.category = category;
+        CategoryPanel(Module.Category cat, List<Module> modules, int x, int y) {
+            this.cat = cat;
             this.modules = modules;
             this.x = x;
             this.y = y;
-            this.width = width;
         }
 
         void render(DrawContext ctx, int mx, int my) {
-            int totalHeight = PANEL_HEADER_HEIGHT + modules.size() * 20 + 4;
+            int panelH = HEADER_H + modules.size() * MODULE_H + 4;
 
-            // Header background
-            ctx.fill(x, y, x + width, y + PANEL_HEADER_HEIGHT, ACCENT);
-            ctx.drawText(getTr(), Text.literal(category.displayName.toUpperCase()), x + 6, y + 6, WHITE, true);
+            // Sombra
+            ctx.fill(x + 2, y + 2, x + w + 2, y + panelH + 2, 0x55000000);
 
-            // Module list
-            for (int i = 0; i < modules.size(); i++) {
-                Module mod = modules.get(i);
-                int modY = y + PANEL_HEADER_HEIGHT + i * 20;
-                boolean hovered = mx >= x + 2 && mx <= x + width - 2 && my >= modY && my <= modY + 19;
-                int bgColor = hovered ? BG_HOVER : BG_SECONDARY;
-                ctx.fill(x + 2, modY, x + width - 2, modY + 18, bgColor);
+            // Fundo do painel
+            ctx.fill(x, y, x + w, y + panelH, PANEL_BG);
 
-                // Module name
-                int nameColor = mod.isEnabled() ? ON_COLOR : GRAY;
-                ctx.drawText(getTr(), Text.literal(mod.getName()), x + 6, modY + 4, nameColor, true);
+            // Header azul
+            ctx.fill(x, y, x + w, y + HEADER_H, HEADER_BG);
 
-                // Toggle indicator
-                String status = mod.isEnabled() ? "+" : "-";
-                int statusColor = mod.isEnabled() ? ON_COLOR : OFF_COLOR;
+            // Nome da categoria centralizado
+            String name = cat.displayName.toUpperCase();
+            int tw = getTr().getWidth(name);
+            int tx = x + (w - tw) / 2;
+            int ty = y + (HEADER_H - 8) / 2;
+            ctx.drawText(getTr(), Text.literal(name), tx, ty, HEADER_TEXT, true);
+
+            // Linha inferior do header
+            ctx.fill(x, y + HEADER_H, x + w, y + HEADER_H + 1, 0xFF0D4A8A);
+
+            // Módulos
+            int modY = y + HEADER_H + 2;
+            for (Module mod : modules) {
+                boolean active = mod.isEnabled();
+                boolean hovered = mx >= x && mx <= x + w && my >= modY && my <= modY + MODULE_H;
+
+                if (hovered) {
+                    ctx.fill(x, modY, x + w, modY + MODULE_H, MOD_HOVER);
+                }
+
+                // Barra lateral se ativo
+                if (active) {
+                    ctx.fill(x, modY, x + 2, modY + MODULE_H, MOD_ACTIVE);
+                }
+
+                // Nome do módulo
+                int color = active ? MOD_ACTIVE : MOD_TEXT;
+                ctx.drawText(getTr(), Text.literal(mod.getName()), x + 6, modY + 3, color, true);
+
+                // Status ON/OFF
+                String status = active ? "ON" : "OFF";
+                int sc = active ? ON_INDICATOR : MOD_INACTIVE;
                 int sw = getTr().getWidth(status);
-                ctx.drawText(getTr(), Text.literal(status), x + width - 6 - sw, modY + 4, statusColor, true);
+                ctx.drawText(getTr(), Text.literal(status), x + w - sw - 6, modY + 3, sc, true);
 
-                // Separator
-                ctx.fill(x + 4, modY + 18, x + width - 4, modY + 19, SEPARATOR);
+                // Separador
+                ctx.fill(x + 2, modY + MODULE_H - 1, x + w - 2, modY + MODULE_H, SEPARATOR);
+
+                modY += MODULE_H;
             }
 
-            // Border
-            ctx.fill(x, y, x + width, y + 1, BORDER_COLOR);
-            ctx.fill(x, y + totalHeight - 1, x + width, y + totalHeight, BORDER_COLOR);
-            ctx.fill(x, y, x + 1, y + totalHeight, BORDER_COLOR);
-            ctx.fill(x + width - 1, y, x + width, y + totalHeight, BORDER_COLOR);
+            // Bordas
+            ctx.fill(x, y, x + w, y + 1, BORDER_COLOR);
+            ctx.fill(x, y + panelH - 1, x + w, y + panelH, BORDER_COLOR);
+            ctx.fill(x, y, x + 1, y + panelH, BORDER_COLOR);
+            ctx.fill(x + w - 1, y, x + w, y + panelH, BORDER_COLOR);
         }
 
-        Module getModuleAt(double mx, double my) {
-            for (int i = 0; i < modules.size(); i++) {
-                int modY = y + PANEL_HEADER_HEIGHT + i * 20;
-                if (mx >= x + 2 && mx <= x + width - 2 && my >= modY && my <= modY + 18) {
-                    return modules.get(i);
+        Module getModuleAt(int mx, int my) {
+            int modY = y + HEADER_H + 2;
+            for (Module mod : modules) {
+                if (mx >= x + 2 && mx <= x + w - 2 && my >= modY && my <= modY + MODULE_H) {
+                    return mod;
                 }
+                modY += MODULE_H;
             }
             return null;
         }
